@@ -20,3 +20,4 @@ Due to the large size of data files, the data files (realizations and PCA basis)
 Please cite our paper if you find the codes useful
 
 ## Acknowledgments
+The authors acknowledge partial funding of this project by Energi Simulation Chair Program. The authors also thank Syamil Mohd Razak for helping build the three-dimensional case study for this work.

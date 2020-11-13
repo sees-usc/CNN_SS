@@ -14,7 +14,11 @@ The MATLAB Reservoir Simulation Toolbox (MRST)
 ## Data
 Due to the large size of data files, the data files (realizations and PCA basis) are not uploaded. Please email me (anyuejia@usc.edu) for the access to them.
 
-![](https://github.com/AnyueJ/CNN_SS/blob/main/Image/2D.jpg =200x200)
+### 2D
+<img src="https://github.com/AnyueJ/CNN_SS/blob/main/Image/2D.jpg" width="616" height="551">
+
+### 3D
+
 ## Citation
 Please cite our paper if you find the codes useful
 

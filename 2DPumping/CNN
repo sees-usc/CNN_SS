@@ -1,0 +1,141 @@
+import tensorflow as tf
+import scipy.io as sio
+
+import numpy as np
+import matplotlib
+matplotlib.use('agg')
+import matplotlib.pyplot as plt
+import time
+from matplotlib import pyplot as mp
+
+from tensorflow.contrib.slim import fully_connected as fc
+from tensorflow.python.ops.parallel_for.gradients import jacobian
+input_dim = 10000
+class CNN(object):
+
+    def __init__(self, conv1n):
+
+        tf.reset_default_graph()
+        self.conv1n = conv1n
+        self.build()
+
+        self.sess = tf.InteractiveSession()
+        self.sess.run(tf.global_variables_initializer())
+
+    # Build the netowrk and the loss functions
+    def build(self):
+        self.x = tf.placeholder(
+            name='x', dtype=tf.float32, shape=[None, input_dim])
+        self.labels = tf.placeholder(
+            name='labels', dtype=tf.int64, shape=[None, 5])
+        self.learning_rate = tf.placeholder(name = 'learning_rate',dtype = tf.float32,shape = None)
+        self.drate = tf.placeholder(name = 'drate',dtype = tf.float32,shape = None)
+        self.onehotgrad = tf.placeholder(name = 'onehotgrad',dtype = tf.float32,shape = [None,5])
+        self.l1c = tf.placeholder(name = 'l1c',dtype = tf.float32,shape = None)
+        self.l2c = tf.placeholder(name = 'l2c',dtype = tf.float32,shape = None)
+        inp0 = tf.nn.dropout(self.x,rate = self.drate)
+        inp = tf.reshape(inp0,[-1,100,100,1])
+        
+        self.conv1 = tf.contrib.layers.conv2d(inp,self.conv1n,[5,5],stride=1,
+                                 padding='Same',activation_fn=tf.nn.relu,scope = 'Conv1')
+ 
+        
+        mp1 = tf.contrib.layers.avg_pool2d(self.conv1,[2,2])
+        d1 = tf.nn.dropout(mp1,rate = self.drate)
+        self.conv2 = tf.contrib.layers.conv2d(d1,self.conv1n*2,[5,5],stride=1,
+                                 padding='Same',activation_fn=tf.nn.relu,scope = 'Conv2')
+        #self.mp2 = tf.contrib.layers.max_pool2d(self.conv2,[2,2])
+        self.mp2 = tf.contrib.layers.avg_pool2d(self.conv2,[2,2])
+        d2 = tf.nn.dropout(self.mp2,rate = self.drate)
+        
+        self.conv3 = tf.contrib.layers.conv2d(d2,self.conv1n*4,[3,3],stride=1,
+                                 padding='Same',activation_fn=tf.nn.relu,scope = 'Conv3')
+
+        #self.mp3 = tf.contrib.layers.max_pool2d(self.conv3,[2,2])
+        self.mp3 = tf.contrib.layers.avg_pool2d(self.conv3,[2,2])
+        d3 = tf.nn.dropout(self.mp3,rate = self.drate)
+        self.conv4 = tf.contrib.layers.conv2d(d3,self.conv1n*8,[3,3],stride=1,
+                                 padding='Same',activation_fn=tf.nn.relu,scope = 'Conv4')
+        self.conv5 = tf.contrib.layers.conv2d(self.conv4,self.conv1n*8,[3,3],stride=1,
+                                 padding='Same',activation_fn=tf.nn.relu,scope = 'Conv5')
+        self.mp4 = tf.contrib.layers.max_pool2d(self.conv5,[2,2])
+        
+        
+        print(d3.shape)
+        flate1 = tf.reshape(self.mp4,[-1,6*6*self.conv1n*8])
+        self.logits =fc(flate1, 5, scope='FC1',activation_fn=None)
+        print(self.logits.shape)
+        print(self.labels.shape)
+        self.l2w = sum(tf.nn.l2_loss(var) for var in tf.trainable_variables() if not 'biases' in var.name)
+        self.l2b = sum(tf.nn.l2_loss(var) for var in tf.trainable_variables() if not 'weights' in var.name)
+        self.l1w = sum(tf.reduce_sum(tf.abs(var)) for var in tf.trainable_variables() if not 'biases' in var.name)
+        self.l1b = sum(tf.reduce_sum(tf.abs(var)) for var in tf.trainable_variables() if not 'weights' in var.name)
+        self.loss = tf.losses.softmax_cross_entropy(self.labels, self.logits)
+        #self.total_loss = self.loss
+        self.total_loss = self.loss  + self.l2c*self.l2w + self.l2c*self.l2b +self.l1c*self.l1w +self.l1c*self.l1b
+        self.train_op = tf.train.AdamOptimizer(
+            learning_rate=self.learning_rate).minimize(self.total_loss)
+        
+        self.losses = {
+            'loss': self.loss,
+            'total_loss': self.total_loss,
+            'L1':self.l1w,
+            'L2':self.l2w
+        }     
+        self.prob = tf.nn.softmax(self.logits)
+        self.correct = tf.equal(tf.argmax(self.prob,1), tf.argmax(self.labels, 1))
+        self.accuracy=tf.reduce_mean(tf.cast(self.correct, tf.float32))
+        self.y_c = tf.reduce_sum(tf.multiply(self.logits,self.onehotgrad)+tf.constant(1e-5),axis = 1)
+        self.grad = tf.gradients(self.y_c,self.mp2)[0]
+        
+        return
+
+    # Execute the forward and the backward pass
+    def run_single_step(self, x,labels,learning_rate,drate,l1c,l2c):
+        _, losses = self.sess.run(
+            [self.train_op, self.losses],
+            feed_dict={self.x: x,self.labels: labels, self.learning_rate:learning_rate,self.drate: drate
+                      ,self.l1c:l1c, self.l2c:l2c}
+        )
+        return losses
+
+    # x -> x_hat
+    def predictprob(self, x):
+        drate = 0
+        prob = self.sess.run(self.prob, feed_dict={self.x: x,self.drate: drate})
+        
+        return prob
+    def predictclass(self, x):
+        drate = 0
+        logits = self.sess.run(self.logits, feed_dict={self.x: x,self.drate: drate})
+        return pclass
+    def calaccuracy(self,x,label):
+        drate = 0
+        accuracy = self.sess.run(self.accuracy, feed_dict={self.x: x,self.labels:label,self.drate: drate})
+        
+        return accuracy
+    def caljacob(self,x,label,l1c,l2c):
+        drate = 0
+        jacob = self.sess.run(jacobian(self.total_loss,self.x), feed_dict={self.x:x,self.labels:label,self.drate:drate
+                                                                          ,self.l1c:l1c, self.l2c:l2c})
+        return jacob
+    def gradcam(self,x,nlabel):
+        drate = 0
+        onehotgrad = np.zeros((1,5))
+        onehotgrad[0,nlabel] = 1
+        gradcam = self.sess.run(self.grad,feed_dict={self.x:x,self.drate:drate,self.onehotgrad:onehotgrad})
+        return gradcam
+    def actmp2(self,x):
+        drate = 0
+        actmp2 = self.sess.run(self.mp4,feed_dict = {self.x:x,self.drate:drate})
+        return actmp2
+model = CNN(10)
+saver = tf.train.Saver()
+saver.restore(model.sess, "tf_models/CNNvisual104.ckpt")
+fullmap = sio.loadmat('fullmap.mat')
+
+fullmap = np.array(fullmap["fullmap"]).transpose()
+
+prob = model.predictprob(fullmap)[0]
+model.sess.close()
+sio.savemat('prob',{'prob':prob})

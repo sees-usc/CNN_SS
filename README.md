@@ -2,8 +2,11 @@
 
 ## Packages
 Python 3.6
-MatLab
+
+MATLAB
+
 Tensorflow 1.13
+
 The MATLAB Reservoir Simulation Toolbox (MRST)
 
 ## Data

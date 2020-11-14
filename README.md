@@ -23,7 +23,7 @@ Due to the large size of data files, the data files (realizations and PCA basis)
 <img src="https://github.com/AnyueJ/CNN_SS/blob/main/Image/FluvialSystem.jpg" width="440" height="364">
 </p>
 
-### 3D Example: Saigup Model
+### 3D Example: SAIGUP Model
 <p align="center">
 <img src="https://github.com/AnyueJ/CNN_SS/blob/main/Image/SaigupScenarios.jpg" width="440" height="410">
 </p>
